@@ -1,14 +1,62 @@
 [
   {
     "id": 1,
-    "name": "御所見小学校"
+    "name": "御所見小学校",
+    "address": "藤沢市用田585",
+    "opening_status": "開設中",
+    "capacity": 300,
+    "evacuees": 86,
+    "pet_allowed": true,
+    "barrier_free": true
   },
   {
     "id": 2,
-    "name": "片瀬小学校"
+    "name": "片瀬小学校",
+    "address": "藤沢市片瀬2-14-29",
+    "opening_status": "開設中",
+    "capacity": 250,
+    "evacuees": 214,
+    "pet_allowed": false,
+    "barrier_free": true
   },
   {
     "id": 5,
-    "name": "鵠洋小学校"
+    "name": "鵠洋小学校",
+    "address": "藤沢市鵠沼桜が岡3-16-38",
+    "opening_status": "閉鎖中",
+    "capacity": 200,
+    "evacuees": 200,
+    "pet_allowed": true,
+    "barrier_free": false
+  },
+  {
+    "id": 6,
+    "name": "テスト",
+    "address": "藤沢市テスト町1-1",
+    "opening_status": "開設中",
+    "capacity": 100,
+    "evacuees": 12,
+    "pet_allowed": true,
+    "barrier_free": false
+  },
+  {
+    "id": 7,
+    "name": "テスト",
+    "address": "藤沢市テスト町2-2",
+    "opening_status": "未開設",
+    "capacity": 150,
+    "evacuees": 0,
+    "pet_allowed": false,
+    "barrier_free": true
+  },
+  {
+    "id": 8,
+    "name": "あああ",
+    "address": "藤沢市サンプル町3-3",
+    "opening_status": "開設中",
+    "capacity": 80,
+    "evacuees": 80,
+    "pet_allowed": false,
+    "barrier_free": false
   }
 ]

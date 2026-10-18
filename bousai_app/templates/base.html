@@ -4,31 +4,148 @@
   <meta charset="utf-8">
   <title>{% block title %}防災アプリ{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    :root {
+      --app-blue: #2d5ca8;
+      --app-blue-dark: #244b8d;
+      --app-green: #2e9b50;
+      --app-text: #263238;
+      --app-muted: #627184;
+      --app-surface: #ffffff;
+      --app-page: #f7f9fc;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--app-text);
+      background: var(--app-page);
+      font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+    }
+
+    .app-header {
+      background: var(--app-blue);
+      box-shadow: 0 2px 8px rgba(35, 69, 125, 0.18);
+    }
+
+    .app-header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: min(100% - 40px, 1380px);
+      height: 70px;
+      margin: 0 auto;
+    }
+
+    .app-brand {
+      color: #fff;
+      font-size: 25px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .menu-toggle {
+      display: inline-flex;
+      flex-direction: column;
+      justify-content: space-between;
+      width: 24px;
+      height: 19px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .menu-toggle span {
+      display: block;
+      width: 24px;
+      height: 3px;
+      border-radius: 1px;
+      background: #fff;
+    }
+
+    .app-nav {
+      display: none;
+      padding: 0 20px 16px;
+      text-align: right;
+    }
+
+    .app-nav.is-open {
+      display: block;
+    }
+
+    .app-nav a,
+    .app-nav span {
+      color: #fff;
+      font-size: 14px;
+      line-height: 2;
+      text-decoration: none;
+    }
+
+    .app-nav a {
+      margin-left: 16px;
+    }
+
+    .app-main {
+      width: min(100% - 40px, 920px);
+      margin: 32px auto 72px;
+    }
+
+    @media (max-width: 600px) {
+      .app-header-inner {
+        width: calc(100% - 32px);
+      }
+
+      .app-brand {
+        font-size: 21px;
+      }
+
+      .app-main {
+        width: calc(100% - 24px);
+        margin-top: 20px;
+      }
+    }
+  </style>
 </head>
 <body>
-  <!-- ヘッダー -->
-  <h1>防災アプリ</h1>
-
-  <!-- ナビゲーション -->
-  <nav>
-    <a href="/">ホーム</a> |
-    <a href="/shelter_search">避難所検索</a> |
-    <a href="/shelter_register">避難所登録</a> |
-    <a href="/board">指示・発信ボード</a>
-    ｜
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div class="app-brand">防災アプリ</div>
+      <button class="menu-toggle" type="button" aria-label="メニューを開く" aria-controls="appNav" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+    <nav class="app-nav" id="appNav">
+      <a href="/">ホーム</a>
+      <a href="/shelter_search">避難所検索</a>
+      <a href="/shelter_register">避難所登録</a>
+      <a href="/board">指示・発信ボード</a>
     {% if session.logged_in %}
-      ログイン中{% if session.username %}（{{ session.username }}）{% endif %}
+      <span>ログイン中{% if session.username %}（{{ session.username }}）{% endif %}</span>
       <a href="/logout">ログアウト</a>
     {% else %}
-      未ログイン
+      <span>未ログイン</span>
       <a href="/login">ログイン</a>
     {% endif %}
-  </nav>
-  <hr>
+    </nav>
+  </header>
 
-  <main>
-    <!-- ここに子テンプレートの content が入る -->
+  <main class="app-main">
     {% block content %}{% endblock %}
   </main>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const menuButton = document.querySelector('.menu-toggle');
+      const menu = document.getElementById('appNav');
+
+      menuButton.addEventListener('click', function() {
+        const isOpen = menu.classList.toggle('is-open');
+        menuButton.setAttribute('aria-expanded', String(isOpen));
+      });
+    });
+  </script>
 </body>
 </html>

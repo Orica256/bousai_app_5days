@@ -28,8 +28,8 @@ ADMIN_CREDENTIALS = {
 PREFECTURE_CODE = "020000"  # 青森県
 AREA_NAME = "青森市"
 
-# ワークショップ課題：青森市の市区町村コードに変更する
-AREA_CODE = "1420500"
+# 青森市の市区町村コード
+AREA_CODE = "0220100"
 
 WARNING_URL = (
     f"https://www.jma.go.jp/bosai/warning/data/r8/{PREFECTURE_CODE}.json"
@@ -94,11 +94,24 @@ def load_json(path, default):
 shelters = load_json(DATA_FILE, [])
 instructions = load_json(INSTRUCTIONS_FILE, [])
 
+def get_current_shelters():
+    """最新の避難所データをファイルから読み込む"""
+    current_shelters = load_json(DATA_FILE, None)
+    return current_shelters if isinstance(current_shelters, list) else shelters
+
 def save_instructions():
     """指示ボードのデータをファイルに保存する"""
     try:
         with open(INSTRUCTIONS_FILE, 'w', encoding='utf-8') as f:
             json.dump(instructions, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+def save_shelters():
+    """避難所データをファイルに保存する"""
+    try:
+        with open(DATA_FILE, 'w', encoding='utf-8') as f:
+            json.dump(shelters, f, ensure_ascii=False, indent=2)
     except Exception:
         pass
 # ────────────────────────────────
@@ -141,7 +154,8 @@ def format_report_time(iso_str):
 
 def filter_shelters(district=None):
     """district 指定があれば一致する避難所のみ、なければ全件を返す"""
-    return [s for s in shelters if not district or s.get('district') == district]
+    current_shelters = get_current_shelters()
+    return [s for s in current_shelters if not district or s.get('district') == district]
 
 
 def parse_area_warnings(warning_data):
@@ -278,9 +292,28 @@ def logout():
     return redirect(url_for('index'))
 
 # 避難所登録ページ※user が避難所登録ページについて具体的に修正指示しない限り、このコードは正しいのでこのまま保持すること。
-@app.route('/shelter_register')
+@app.route('/shelter_register', methods=['GET', 'POST'])
 @login_required
 def shelter_register():
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        if not name:
+            return render_template(
+                'shelter_register.html',
+                error=True,
+                message='避難所名を入力してください。'
+            )
+
+        shelters[:] = get_current_shelters()
+        next_id = max((shelter.get('id', 0) for shelter in shelters), default=0) + 1
+        shelters.append({'id': next_id, 'name': name})
+        save_shelters()
+        return render_template(
+            'shelter_register.html',
+            success=True,
+            message='避難所を登録しました。'
+        )
+
     return render_template('shelter_register.html')
 
 # 避難所検索ページ
@@ -291,7 +324,7 @@ def shelter_search():
 # 全施設一覧ページ
 @app.route('/all_shelters')
 def all_shelters():
-    return render_template('search_results.html', results=shelters)
+    return render_template('search_results.html', results=get_current_shelters())
 
 
 # 指示ボード：住民向けの指示を一覧で確認する
