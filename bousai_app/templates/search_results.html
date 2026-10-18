@@ -121,7 +121,7 @@
     align-items: center;
     flex-wrap: wrap;
     gap: 16px;
-    margin-top: 28px;
+    margin: 0 0 24px;
   }
 
   .search-again-link {
@@ -152,6 +152,12 @@
 </style>
 
 <h2 class="results-heading">避難所検索結果</h2>
+
+<div class="results-links">
+  <a class="search-again-link" href="/shelter_search">
+    <span aria-hidden="true">↻</span>条件を変えて再検索
+  </a>
+</div>
 
 {% if results %}
   <div class="shelter-results">
@@ -219,10 +225,5 @@
   <p class="no-results">条件に合う避難所がありません</p>
 {% endif %}
 
-<p class="results-links">
-  <a class="search-again-link" href="/shelter_search">
-    <span aria-hidden="true">↻</span>条件を変えて再検索
-  </a>
-  <a href="/">トップページへ戻る</a>
-</p>
+<p><a href="/">トップページへ戻る</a></p>
 {% endblock %}
