@@ -117,7 +117,27 @@
   }
 
   .results-links {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
     margin-top: 28px;
+  }
+
+  .search-again-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 16px;
+    border-radius: 7px;
+    color: #fff;
+    background: var(--app-blue);
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .search-again-link:hover {
+    background: var(--app-blue-dark);
   }
 
   @media (max-width: 600px) {
@@ -196,11 +216,13 @@
     {% endfor %}
   </div>
 {% else %}
-  <p class="no-results">該当する避難所が見つかりませんでした</p>
+  <p class="no-results">条件に合う避難所がありません</p>
 {% endif %}
 
 <p class="results-links">
-  <a href="/shelter_search">検索画面に戻る</a> |
+  <a class="search-again-link" href="/shelter_search">
+    <span aria-hidden="true">↻</span>条件を変えて再検索
+  </a>
   <a href="/">トップページへ戻る</a>
 </p>
 {% endblock %}
