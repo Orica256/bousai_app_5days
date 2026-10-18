@@ -18,6 +18,14 @@
     <label for="name">避難所名（必須）</label><br>
     <input type="text" id="name" name="name">
   </p>
+  <p>
+    <label for="opening_status">開設状況</label><br>
+    <select id="opening_status" name="opening_status">
+      <option value="未開設">未開設</option>
+      <option value="開設中">開設中</option>
+      <option value="閉鎖中">閉鎖中</option>
+    </select>
+  </p>
   <p><button type="submit">登録</button></p>
 </form>
 {% endblock %}

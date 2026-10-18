@@ -34,7 +34,6 @@
     .app-header-inner {
       display: flex;
       align-items: center;
-      justify-content: space-between;
       width: min(100% - 40px, 1380px);
       height: 70px;
       margin: 0 auto;
@@ -47,8 +46,12 @@
       letter-spacing: 0.02em;
     }
 
+    .app-header-inner .app-brand {
+      flex: 0 0 auto;
+    }
+
     .menu-toggle {
-      display: inline-flex;
+      display: none;
       flex-direction: column;
       justify-content: space-between;
       width: 24px;
@@ -57,6 +60,12 @@
       border: 0;
       background: transparent;
       cursor: pointer;
+    }
+
+    .menu-toggle:focus-visible,
+    .app-nav a:focus-visible {
+      outline: 3px solid #b9d7ff;
+      outline-offset: 3px;
     }
 
     .menu-toggle span {
@@ -68,25 +77,82 @@
     }
 
     .app-nav {
-      display: none;
-      padding: 0 20px 16px;
-      text-align: right;
-    }
-
-    .app-nav.is-open {
-      display: block;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-left: auto;
     }
 
     .app-nav a,
     .app-nav span {
       color: #fff;
       font-size: 14px;
-      line-height: 2;
       text-decoration: none;
     }
 
     .app-nav a {
-      margin-left: 16px;
+      padding: 8px 10px;
+      border-radius: 5px;
+    }
+
+    .app-nav a:hover,
+    .app-nav a[aria-current="page"] {
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    .app-nav a[aria-current="page"] {
+      box-shadow: inset 0 -3px 0 #fff;
+      font-weight: 700;
+    }
+
+    .app-nav .nav-login-status {
+      margin-left: 8px;
+      padding-left: 12px;
+      border-left: 1px solid rgba(255, 255, 255, 0.4);
+    }
+
+    @media (max-width: 860px) {
+      .app-header-inner {
+        position: relative;
+      }
+
+      .menu-toggle {
+        display: inline-flex;
+        margin-left: auto;
+      }
+
+      .app-nav {
+        display: none;
+        position: absolute;
+        top: 70px;
+        right: 0;
+        left: 0;
+        z-index: 10;
+        padding: 12px 20px 16px;
+        background: var(--app-blue-dark);
+        box-shadow: 0 5px 10px rgba(35, 69, 125, 0.2);
+        text-align: right;
+      }
+
+      .app-nav.is-open {
+        display: block;
+      }
+
+      .app-nav a,
+      .app-nav span {
+        display: block;
+      }
+
+      .app-nav a {
+        margin: 2px 0;
+      }
+
+      .app-nav .nav-login-status {
+        margin: 8px 0 0;
+        padding: 8px 10px 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.4);
+        border-left: 0;
+      }
     }
 
     .app-main {
@@ -119,16 +185,16 @@
       </button>
     </div>
     <nav class="app-nav" id="appNav">
-      <a href="/">ホーム</a>
-      <a href="/shelter_search">避難所検索</a>
-      <a href="/shelter_register">避難所登録</a>
-      <a href="/board">指示・発信ボード</a>
+      <a href="/" {% if request.path == '/' %}aria-current="page"{% endif %}>ホーム</a>
+      <a href="/shelter_search" {% if request.path.startswith('/shelter_search') or request.path.startswith('/search_results') or request.path.startswith('/all_shelters') %}aria-current="page"{% endif %}>避難所検索</a>
+      <a href="/shelter_register" {% if request.path.startswith('/shelter_register') %}aria-current="page"{% endif %}>避難所登録</a>
+      <a href="/board" {% if request.path.startswith('/board') %}aria-current="page"{% endif %}>指示・発信ボード</a>
     {% if session.logged_in %}
-      <span>ログイン中{% if session.username %}（{{ session.username }}）{% endif %}</span>
+      <span class="nav-login-status">ログイン中{% if session.username %}（{{ session.username }}）{% endif %}</span>
       <a href="/logout">ログアウト</a>
     {% else %}
-      <span>未ログイン</span>
-      <a href="/login">ログイン</a>
+      <span class="nav-login-status">未ログイン</span>
+      <a href="/login" {% if request.path.startswith('/login') %}aria-current="page"{% endif %}>ログイン</a>
     {% endif %}
     </nav>
   </header>
@@ -144,6 +210,16 @@
       menuButton.addEventListener('click', function() {
         const isOpen = menu.classList.toggle('is-open');
         menuButton.setAttribute('aria-expanded', String(isOpen));
+        menuButton.setAttribute('aria-label', isOpen ? 'メニューを閉じる' : 'メニューを開く');
+      });
+
+      document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && menu.classList.contains('is-open')) {
+          menu.classList.remove('is-open');
+          menuButton.setAttribute('aria-expanded', 'false');
+          menuButton.setAttribute('aria-label', 'メニューを開く');
+          menuButton.focus();
+        }
       });
     });
   </script>

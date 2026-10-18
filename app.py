@@ -3,6 +3,7 @@ from urllib.parse import urlparse, urljoin
 from functools import wraps
 import json
 import os
+import re
 import urllib.request
 from datetime import datetime, timedelta, timezone
 
@@ -99,6 +100,40 @@ def get_current_shelters():
     current_shelters = load_json(DATA_FILE, None)
     return current_shelters if isinstance(current_shelters, list) else shelters
 
+
+def get_latest_notice_update(notices):
+    """発信データに記録された最新更新日時を返す"""
+    dated_notices = [
+        notice for notice in notices
+        if notice.get('updated_at') or notice.get('created_at')
+    ]
+    if not dated_notices:
+        return None
+
+    def notice_datetime(notice):
+        value = notice.get('updated_at') or notice.get('created_at')
+        try:
+            return datetime.strptime(value, "%Y年%m月%d日 %H:%M")
+        except (TypeError, ValueError):
+            return datetime.min
+
+    latest_notice = max(dated_notices, key=notice_datetime)
+    return latest_notice.get('updated_at') or latest_notice.get('created_at')
+
+
+def is_high_priority_notice(notice):
+    """避難行動を急ぐ必要がある住民向け発信か判定する"""
+    urgency = str(notice.get('urgency', '')).strip()
+    content = str(notice.get('content', '')).strip()
+    return (
+        urgency in ('高', '緊急', 'high', 'urgent')
+        or '避難指示' in content
+        or '避難してください' in content
+        or '避難勧告' in content
+        or '緊急' in content
+    )
+
+
 def save_instructions():
     """指示ボードのデータをファイルに保存する"""
     try:
@@ -155,7 +190,93 @@ def format_report_time(iso_str):
 def filter_shelters(district=None):
     """district 指定があれば一致する避難所のみ、なければ全件を返す"""
     current_shelters = get_current_shelters()
-    return [s for s in current_shelters if not district or s.get('district') == district]
+    return [
+        s for s in current_shelters
+        if not district or get_shelter_district(s) == district
+    ]
+
+
+def get_shelter_district(shelter):
+    """地区項目がない古いデータでは住所から地区名を補完する"""
+    district = shelter.get('district')
+    if isinstance(district, str) and district.strip():
+        return district.strip()
+
+    address = shelter.get('address')
+    if not isinstance(address, str):
+        return ''
+    match = re.search(r'市(.+?)(?=\d|[-－])', address)
+    return match.group(1) if match else ''
+
+
+def get_shelter_districts():
+    """現在の避難所データから地区選択肢を作成する"""
+    return sorted({
+        district for shelter in get_current_shelters()
+        if (district := get_shelter_district(shelter))
+    })
+
+
+SEARCH_HAZARDS = ('津波', '土砂崩れ', '洪水')
+SEARCH_PET_VALUES = ('allowed', 'not_allowed')
+
+
+def validate_search_params(args):
+    """避難所検索のGETパラメータを検証して正規化する"""
+    keyword = args.get('keyword', '').strip()
+    district = args.get('district', '').strip()
+    hazards = args.getlist('hazard')
+    pets = args.getlist('pet')
+    barrier_free = args.get('barrier_free', '')
+
+    invalid_hazards = [value for value in hazards if value not in SEARCH_HAZARDS]
+    invalid_pets = [value for value in pets if value not in SEARCH_PET_VALUES]
+    if (
+        invalid_hazards
+        or invalid_pets
+        or barrier_free not in ('', 'true')
+        or (district and district not in get_shelter_districts())
+    ):
+        raise ValueError('検索条件に不正な値が含まれています。')
+
+    return {
+        'keyword': keyword,
+        'district': district,
+        'hazards': list(dict.fromkeys(hazards)),
+        'pets': list(dict.fromkeys(pets)),
+        'barrier_free': barrier_free == 'true'
+    }
+
+
+def search_shelters(criteria):
+    """避難所検索条件をすべて満たす施設を返す"""
+    results = []
+    keyword = criteria['keyword'].casefold()
+    for shelter in get_current_shelters():
+        name = str(shelter.get('name', ''))
+        if keyword and keyword not in name.casefold():
+            continue
+        if criteria['district'] and get_shelter_district(shelter) != criteria['district']:
+            continue
+
+        if criteria['hazards']:
+            shelter_hazards = shelter.get('hazards', [])
+            if not isinstance(shelter_hazards, list):
+                shelter_hazards = []
+            if not any(hazard in shelter_hazards for hazard in criteria['hazards']):
+                continue
+
+        pet_allowed = shelter.get('pet_allowed', shelter.get('pets_allowed'))
+        if criteria['pets'] and len(criteria['pets']) == 1:
+            if criteria['pets'][0] == 'allowed' and pet_allowed is not True:
+                continue
+            if criteria['pets'][0] == 'not_allowed' and pet_allowed is not False:
+                continue
+
+        if criteria['barrier_free'] and shelter.get('barrier_free') is not True:
+            continue
+        results.append(shelter)
+    return results
 
 
 def parse_area_warnings(warning_data):
@@ -251,7 +372,25 @@ def get_weather_warnings():
 @app.route('/')
 def index():
     resident_notices = [i for i in instructions if i.get('target') == '住民']
-    return render_template('index.html', resident_notices=resident_notices)
+    emergency_notices = [
+        notice for notice in resident_notices
+        if notice.get('status') not in ('解除', '完了')
+    ]
+    new_directives = sorted(
+        emergency_notices,
+        key=lambda notice: (
+            not is_high_priority_notice(notice),
+            notice.get('updated_at') or notice.get('created_at') or ''
+        )
+    )
+    return render_template(
+        'index.html',
+        resident_notices=resident_notices,
+        emergency_notices=emergency_notices,
+        new_directives=new_directives,
+        is_high_priority_notice=is_high_priority_notice,
+        latest_notice_update=get_latest_notice_update(resident_notices)
+    )
 
 # ログインページ
 @app.route('/login', methods=['GET', 'POST'])
@@ -304,9 +443,17 @@ def shelter_register():
                 message='避難所名を入力してください。'
             )
 
+        opening_status = request.form.get('opening_status', '未開設')
+        if opening_status not in ('開設中', '未開設', '閉鎖中'):
+            opening_status = '未開設'
+
         shelters[:] = get_current_shelters()
         next_id = max((shelter.get('id', 0) for shelter in shelters), default=0) + 1
-        shelters.append({'id': next_id, 'name': name})
+        shelters.append({
+            'id': next_id,
+            'name': name,
+            'opening_status': opening_status
+        })
         save_shelters()
         return render_template(
             'shelter_register.html',
@@ -319,12 +466,21 @@ def shelter_register():
 # 避難所検索ページ
 @app.route('/shelter_search')
 def shelter_search():
-    return render_template('shelter_search.html')
+    return render_template(
+        'shelter_search.html',
+        districts=get_shelter_districts()
+    )
 
 # 全施設一覧ページ
 @app.route('/all_shelters')
 def all_shelters():
-    return render_template('search_results.html', results=get_current_shelters())
+    return render_template(
+        'search_results.html',
+        results=get_current_shelters(),
+        search_criteria=None,
+        is_all_shelters=True,
+        districts=get_shelter_districts()
+    )
 
 
 # 指示ボード：住民向けの指示を一覧で確認する
@@ -337,8 +493,25 @@ def board():
 # 検索結果ページ：templates/search_results.html を返す
 @app.route('/search_results')
 def search_results():
-    results = filter_shelters(request.args.get('district'))
-    return render_template('search_results.html', results=results)
+    try:
+        criteria = validate_search_params(request.args)
+    except ValueError as error:
+        return render_template(
+            'search_results.html',
+            results=[],
+            search_criteria=None,
+            search_error=str(error),
+            is_all_shelters=False,
+            districts=get_shelter_districts()
+        ), 400
+
+    return render_template(
+        'search_results.html',
+        results=search_shelters(criteria),
+        search_criteria=criteria,
+        is_all_shelters=False,
+        districts=get_shelter_districts()
+    )
 
 # JSON API：/shelters?district=地区名
 @app.route('/shelters', methods=['GET'])

@@ -154,10 +154,25 @@
 <h2 class="results-heading">避難所検索結果</h2>
 
 <div class="results-links">
-  <a class="search-again-link" href="/shelter_search">
+  <a class="search-again-link" href="{{ url_for('shelter_search') }}">
     <span aria-hidden="true">↻</span>条件を変えて再検索
   </a>
+  <a href="{{ url_for('all_shelters') }}">全施設一覧</a>
 </div>
+
+{% if search_error %}
+  <p class="no-results">{{ search_error }}</p>
+{% elif is_all_shelters %}
+  <p class="search-summary">登録済みの全施設を表示しています。</p>
+{% elif search_criteria %}
+  <p class="search-summary">
+    {% if search_criteria.keyword %}キーワード:「{{ search_criteria.keyword }}」{% endif %}
+    {% if search_criteria.district %} 地区: {{ search_criteria.district }}{% endif %}
+    {% if search_criteria.hazards %} 災害種別: {{ search_criteria.hazards|join('・') }}{% endif %}
+    {% if search_criteria.pets %} ペット: {% if search_criteria.pets|length == 2 %}指定なし{% elif search_criteria.pets[0] == 'allowed' %}ペット可{% else %}ペット不可{% endif %}{% endif %}
+    {% if search_criteria.barrier_free %} バリアフリー対応{% endif %}
+  </p>
+{% endif %}
 
 {% if results %}
   <div class="shelter-results">
@@ -204,17 +219,25 @@
           <dd><span class="availability-badge {{ availability_class }}">{{ availability_label }}</span></dd>
         </div>
       </dl>
-      {% if shelter.get('pet_allowed') or shelter.get('barrier_free') %}
+      {% if shelter.get('pet_allowed') is not none or shelter.get('pets_allowed') is not none or shelter.get('barrier_free') is not none or shelter.get('hazards') %}
       <div class="shelter-facilities" aria-label="対応設備">
-        {% if shelter.get('pet_allowed') %}
+        {% if shelter.get('pet_allowed', shelter.get('pets_allowed')) is true %}
         <span class="facility-badge" title="ペット可">
           <span class="facility-icon" aria-hidden="true">🐾</span>ペット可
+        </span>
+        {% endif %}
+        {% if shelter.get('pet_allowed', shelter.get('pets_allowed')) is false %}
+        <span class="facility-badge" title="ペット不可">
+          <span class="facility-icon" aria-hidden="true">🐾</span>ペット不可
         </span>
         {% endif %}
         {% if shelter.get('barrier_free') %}
         <span class="facility-badge" title="バリアフリー対応">
           <span class="facility-icon" aria-hidden="true">♿</span>バリアフリー
         </span>
+        {% endif %}
+        {% if shelter.get('hazards') %}
+        <span class="facility-badge">対応: {{ shelter.get('hazards')|join('・') }}</span>
         {% endif %}
       </div>
       {% endif %}
